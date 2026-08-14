@@ -6,12 +6,36 @@ dùng tài khoản Facebook thật qua Playwright + persistent Chrome profile
 
 ## 1. Cài đặt
 
+**Linux / macOS:**
+
 ```bash
 python3.12 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium
-playwright install-deps chromium  # Linux: cài thư viện hệ thống cho Chromium (vd: libnspr4, libnss3)
+playwright install-deps chromium  # cài thư viện hệ thống cho Chromium (vd: libnspr4, libnss3)
+```
+
+**Windows:**
+
+Kiểm tra Python đã cài: `py -0`. Nếu chưa có Python 3.12, tải tại
+https://www.python.org/downloads/ (nhớ tick "Add python.exe to PATH"), hoặc
+dùng bản Python khác đã có sẵn (3.12+ đều chạy được, không cần đúng bản).
+
+```cmd
+py -3.12 -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium
+```
+
+Nếu dùng conda, tạo env riêng thay vì `venv`:
+
+```cmd
+conda create -n fbpost python=3.12 -y
+conda activate fbpost
+pip install -r requirements.txt
+playwright install chromium
 ```
 
 ## 2. Đăng nhập Facebook lần đầu
