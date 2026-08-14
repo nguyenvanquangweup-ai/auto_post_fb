@@ -12,7 +12,10 @@ from src.poster import (
     publish,
     upload_images,
 )
+from src.selectors import SEL
 from tests.fakes import FakePage
+
+FILE_INPUT_KEY = f"css:{SEL['file_input_css']}"
 
 
 async def test_open_group_navigates_to_url():
@@ -54,19 +57,19 @@ async def test_create_post_missing_textbox_raises_composer_not_found():
 async def test_upload_images_empty_list_is_noop():
     page = FakePage()
     await upload_images(page, [])
-    assert "css:input[type='file']" not in page._locators
+    assert FILE_INPUT_KEY not in page._locators
 
 
 async def test_upload_images_success_sets_files():
     page = FakePage()
     await upload_images(page, ["a.jpg", "b.jpg"])
-    file_input = page._get("css:input[type='file']")
+    file_input = page._get(FILE_INPUT_KEY)
     assert file_input.uploaded_files == ["a.jpg", "b.jpg"]
 
 
 async def test_upload_images_timeout_raises_upload_timeout_error():
     page = FakePage()
-    page.configure("css:input[type='file']", should_timeout=True)
+    page.configure(FILE_INPUT_KEY, should_timeout=True)
     with pytest.raises(UploadTimeoutError):
         await upload_images(page, ["a.jpg"])
 

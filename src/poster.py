@@ -141,7 +141,7 @@ async def check_anonymous_support(page: Page, url: str, timeout_ms: int = 10000)
 async def upload_images(page: Page, image_paths: list[str], timeout_ms: int = 20000) -> None:
     if not image_paths:
         return
-    file_input = page.locator(SEL["file_input_css"])
+    file_input = page.locator(SEL["file_input_css"]).first
     try:
         await file_input.set_input_files(image_paths, timeout=timeout_ms)
     except PWTimeoutError as exc:
