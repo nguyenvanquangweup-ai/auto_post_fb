@@ -21,8 +21,8 @@ from src.config import (
     save_post_config,
     validate_post_config,
 )
-from src.logger import setup_logging, write_csv_result
-from src.poster import PosterConfig, PosterService
+from src.logger import SUCCESS_LEVEL, setup_logging, write_csv_result
+from src.poster import PosterConfig, PosterError, PosterService, check_anonymous_support
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
@@ -87,6 +87,7 @@ class App(ctk.CTk):
         self.image_paths: list[str] = []
         self.log_queue: queue.Queue = queue.Queue()
         self.progress_queue: queue.Queue = queue.Queue()
+        self.anon_queue: queue.Queue = queue.Queue()
         self.stop_event = threading.Event()
         self.worker_thread: threading.Thread | None = None
         self.verify_feed_var = ctk.BooleanVar(value=False)
@@ -97,6 +98,7 @@ class App(ctk.CTk):
         self._load_initial_config()
         self.after(100, self._drain_log_queue)
         self.after(100, self._drain_progress_queue)
+        self.after(100, self._drain_anon_queue)
 
     # ---------- UI construction ----------
 
@@ -157,6 +159,7 @@ class App(ctk.CTk):
         ctk.CTkButton(group_btn_frame, text="Edit", command=self._edit_group).pack(side="left", padx=6)
         ctk.CTkButton(group_btn_frame, text="Delete", fg_color="#cf222e", command=self._delete_group).pack(side="left", padx=6)
         ctk.CTkButton(group_btn_frame, text="Import JSON", command=self._import_groups_json).pack(side="left", padx=6)
+        ctk.CTkButton(group_btn_frame, text="Kiểm tra ẩn danh", command=self._on_check_anonymous).pack(side="left", padx=6)
 
         ctk.CTkFrame(parent, fg_color="#e5e5e5", height=1).pack(fill="x", padx=12, pady=4)
 
@@ -218,10 +221,20 @@ class App(ctk.CTk):
             row = ctk.CTkFrame(self.group_table, fg_color="transparent")
             row.pack(fill="x", pady=2)
             ctk.CTkCheckBox(row, text="", variable=var, width=20).pack(side="left")
-            ctk.CTkCheckBox(
+            anon_cb = ctk.CTkCheckBox(
                 row, text="Ẩn danh", variable=anon_var, width=20,
                 command=lambda i=idx, v=anon_var: self._set_group_anonymous(i, v.get()),
-            ).pack(side="left", padx=(4, 8))
+            )
+            if group.anonymous_supported is False:
+                anon_var.set(False)
+                anon_cb.configure(state="disabled")
+            anon_cb.pack(side="left", padx=(4, 4))
+            if group.anonymous_supported is True:
+                ctk.CTkLabel(row, text="✓", text_color="#1a7f37", width=14).pack(side="left")
+            elif group.anonymous_supported is False:
+                ctk.CTkLabel(row, text="✗", text_color="#cf222e", width=14).pack(side="left")
+            else:
+                ctk.CTkLabel(row, text="", width=14).pack(side="left")
             ctk.CTkLabel(row, text=group.name, width=160, anchor="w").pack(side="left", padx=4)
             ctk.CTkLabel(row, text=group.url, anchor="w", text_color="gray").pack(side="left", padx=4)
             self.group_vars.append(var)
@@ -311,6 +324,25 @@ class App(ctk.CTk):
             ).pack(side="right", padx=8)
             ctk.CTkLabel(row, text=Path(path).name, anchor="w").pack(side="left", padx=4, fill="x", expand=True)
 
+    def _drain_anon_queue(self) -> None:
+        changed = False
+        try:
+            while True:
+                name, supported = self.anon_queue.get_nowait()
+                for g in self.groups:
+                    if g.name == name:
+                        g.anonymous_supported = supported
+                        if not supported:
+                            g.anonymous = False
+                        break
+                changed = True
+        except queue.Empty:
+            pass
+        if changed:
+            save_groups(self.groups_path, self.groups)
+            self._refresh_group_table()
+        self.after(100, self._drain_anon_queue)
+
     # ---------- realtime log + progress ----------
 
     def _drain_log_queue(self) -> None:
@@ -394,6 +426,13 @@ class App(ctk.CTk):
     def _on_stop(self) -> None:
         self.stop_event.set()
 
+    def _on_check_anonymous(self) -> None:
+        selected = self._selected_groups()
+        if not selected:
+            messagebox.showinfo("Kiểm tra ẩn danh", "Chọn ít nhất 1 group để kiểm tra")
+            return
+        self._run_in_worker(lambda: self._check_anonymous_flow(selected))
+
     def _run_in_worker(self, coro_factory: Callable[[], Coroutine[Any, Any, None]]) -> None:
         if self.worker_thread and self.worker_thread.is_alive():
             messagebox.showinfo("Đang chạy", "Đang có tác vụ chạy, chờ hoàn thành hoặc bấm Stop")
@@ -418,6 +457,27 @@ class App(ctk.CTk):
         try:
             while not self.stop_event.is_set():
                 await asyncio.sleep(0.5)
+        finally:
+            await browser.close()
+
+    async def _check_anonymous_flow(self, groups: list[Group]) -> None:
+        browser = BrowserManager(self.profile_dir)
+        await browser.launch()
+        page = await browser.get_page()
+        try:
+            for group in groups:
+                if self.stop_event.is_set():
+                    break
+                try:
+                    supported = await check_anonymous_support(page, group.url)
+                except PosterError as exc:
+                    self.logger.error(f"{group.name}: lỗi kiểm tra ẩn danh - {exc}")
+                    continue
+                self.anon_queue.put((group.name, supported))
+                if supported:
+                    self.logger.log(SUCCESS_LEVEL, f"{group.name}: hỗ trợ đăng ẩn danh")
+                else:
+                    self.logger.warning(f"{group.name}: KHÔNG hỗ trợ đăng ẩn danh")
         finally:
             await browser.close()
 

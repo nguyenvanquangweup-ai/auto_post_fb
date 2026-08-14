@@ -78,6 +78,10 @@ Bên trái, sửa nội dung trong ô textbox (có thể dùng `{group_name}` đ
   thì group đó đăng ẩn danh (lưu theo group, không cần tick lại mỗi
   lần). Group nào không hỗ trợ chế độ này sẽ tự động đăng công khai và
   có log cảnh báo (màu cam) để bạn biết group đó không ẩn danh được.
+- Bấm **Kiểm tra ẩn danh** (đã tick chọn group) để dò trước group nào hỗ
+  trợ đăng ẩn danh — kết quả hiện dấu **✓** (hỗ trợ) hoặc **✗** (không hỗ
+  trợ, checkbox Ẩn danh bị khoá) ngay trong bảng, lưu lại cho các lần
+  đăng sau.
 - Theo dõi tiến độ ("X / Y Groups") và log realtime (xanh = thành công,
   đỏ = lỗi, cam = pending/không chắc chắn) ngay trong app.
 - Kết quả chi tiết từng group được ghi vào `logs/YYYY-MM-DD.csv` và log

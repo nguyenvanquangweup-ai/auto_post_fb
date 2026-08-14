@@ -113,6 +113,25 @@ async def toggle_anonymous(page: Page, timeout_ms: int = 5000) -> bool:
         return False
 
 
+async def check_anonymous_support(page: Page, url: str, timeout_ms: int = 10000) -> bool:
+    await open_group(page, url, timeout_ms)
+    trigger = page.get_by_role("button", name=SEL["create_post_trigger_name"], exact=True)
+    try:
+        await trigger.click(timeout=timeout_ms)
+    except PWTimeoutError as exc:
+        raise ComposerNotFoundError("Could not find 'Create post' trigger") from exc
+
+    switch = page.get_by_role("switch", name=SEL["anonymous_toggle_name"])
+    try:
+        await switch.wait_for(state="visible", timeout=timeout_ms)
+        supported = True
+    except PWTimeoutError:
+        supported = False
+
+    await page.keyboard.press("Escape")
+    return supported
+
+
 async def upload_images(page: Page, image_paths: list[str], timeout_ms: int = 20000) -> None:
     if not image_paths:
         return
