@@ -64,7 +64,7 @@ loạt group theo định dạng `config/groups.json`:
 
 Bên trái, sửa nội dung trong ô textbox (có thể dùng `{group_name}` để tự
 điền tên group vào nội dung khi đăng). Bấm **Add Images** để chọn nhiều
-ảnh — hiển thị dạng thumbnail, chọn 1 ảnh rồi bấm **Remove** để bỏ.
+ảnh — hiển thị dạng thumbnail, bấm nút **✕** trên từng ảnh để xoá riêng ảnh đó.
 
 ## 5. Đăng bài
 

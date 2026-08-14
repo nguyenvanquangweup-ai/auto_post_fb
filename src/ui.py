@@ -85,7 +85,6 @@ class App(ctk.CTk):
         self.groups: list[Group] = []
         self.group_vars: list[ctk.BooleanVar] = []
         self.image_paths: list[str] = []
-        self.selected_image_index: int | None = None
         self.log_queue: queue.Queue = queue.Queue()
         self.progress_queue: queue.Queue = queue.Queue()
         self.stop_event = threading.Event()
@@ -120,13 +119,10 @@ class App(ctk.CTk):
         self.content_box.pack(fill="x", padx=12)
 
         ctk.CTkLabel(parent, text="Ảnh đính kèm", font=("", 14, "bold")).pack(anchor="w", padx=12, pady=(12, 4))
-        img_btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        img_btn_frame.pack(fill="x", padx=12)
-        ctk.CTkButton(img_btn_frame, text="Add Images", command=self._add_images).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(img_btn_frame, text="Remove", fg_color="gray", command=self._remove_selected_image).pack(side="left")
+        ctk.CTkButton(parent, text="Add Images", command=self._add_images).pack(anchor="w", padx=12)
 
         self.image_frame = ctk.CTkScrollableFrame(parent, height=180)
-        self.image_frame.pack(fill="both", expand=True, padx=12, pady=(4, 12))
+        self.image_frame.pack(fill="both", expand=True, padx=12, pady=(8, 12))
 
         ctk.CTkLabel(parent, text="Delay (giây)", font=("", 14, "bold")).pack(anchor="w", padx=12)
         delay_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -152,15 +148,23 @@ class App(ctk.CTk):
         self.group_table = ctk.CTkScrollableFrame(parent, height=220)
         self.group_table.pack(fill="both", expand=True, padx=12)
 
+        ctk.CTkLabel(parent, text="Quản lý Group", font=("", 12, "bold"), text_color="#57606a").pack(
+            anchor="w", padx=12, pady=(12, 2)
+        )
         group_btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        group_btn_frame.pack(fill="x", padx=12, pady=8)
+        group_btn_frame.pack(fill="x", padx=12, pady=(0, 8))
         ctk.CTkButton(group_btn_frame, text="Add Group", command=self._add_group).pack(side="left", padx=(0, 6))
         ctk.CTkButton(group_btn_frame, text="Edit", command=self._edit_group).pack(side="left", padx=6)
         ctk.CTkButton(group_btn_frame, text="Delete", fg_color="#cf222e", command=self._delete_group).pack(side="left", padx=6)
         ctk.CTkButton(group_btn_frame, text="Import JSON", command=self._import_groups_json).pack(side="left", padx=6)
 
+        ctk.CTkFrame(parent, fg_color="#e5e5e5", height=1).pack(fill="x", padx=12, pady=4)
+
+        ctk.CTkLabel(parent, text="Đăng bài", font=("", 12, "bold"), text_color="#57606a").pack(
+            anchor="w", padx=12, pady=(8, 2)
+        )
         control_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        control_frame.pack(fill="x", padx=12, pady=(4, 8))
+        control_frame.pack(fill="x", padx=12, pady=(0, 8))
         ctk.CTkButton(control_frame, text="Login Facebook", command=self._on_login).pack(side="left", padx=(0, 6))
         ctk.CTkButton(control_frame, text="Test 1 Group", command=self._on_test_one).pack(side="left", padx=6)
         ctk.CTkButton(control_frame, text="Start Posting", fg_color="#1a7f37", command=self._on_start).pack(side="left", padx=6)
@@ -273,19 +277,16 @@ class App(ctk.CTk):
         self.image_paths.extend(paths)
         self._refresh_image_list()
 
-    def _remove_selected_image(self) -> None:
-        if self.selected_image_index is None:
-            return
-        del self.image_paths[self.selected_image_index]
-        self.selected_image_index = None
+    def _remove_image(self, idx: int) -> None:
+        del self.image_paths[idx]
         self._refresh_image_list()
 
     def _refresh_image_list(self) -> None:
         for child in self.image_frame.winfo_children():
             child.destroy()
         for idx, path in enumerate(self.image_paths):
-            row = ctk.CTkFrame(self.image_frame, fg_color="transparent")
-            row.pack(fill="x", pady=2)
+            row = ctk.CTkFrame(self.image_frame, fg_color="#f6f8fa", corner_radius=6)
+            row.pack(fill="x", pady=4, padx=2)
             try:
                 img = Image.open(path)
                 img.thumbnail((48, 48))
@@ -294,14 +295,12 @@ class App(ctk.CTk):
                 thumb.image = ctk_img
             except Exception:
                 thumb = ctk.CTkLabel(row, text="[ảnh lỗi]")
-            thumb.pack(side="left", padx=4)
-            label = ctk.CTkLabel(row, text=Path(path).name, anchor="w")
-            label.pack(side="left", padx=4)
-            row.bind("<Button-1>", lambda e, i=idx: self._select_image(i))
-            label.bind("<Button-1>", lambda e, i=idx: self._select_image(i))
-
-    def _select_image(self, idx: int) -> None:
-        self.selected_image_index = idx
+            thumb.pack(side="left", padx=8, pady=8)
+            ctk.CTkLabel(row, text=Path(path).name, anchor="w").pack(side="left", padx=4, fill="x", expand=True)
+            ctk.CTkButton(
+                row, text="✕", width=28, fg_color="#cf222e", hover_color="#a40e26",
+                command=lambda i=idx: self._remove_image(i),
+            ).pack(side="right", padx=8)
 
     # ---------- realtime log + progress ----------
 
