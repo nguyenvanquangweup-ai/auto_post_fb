@@ -185,9 +185,13 @@ async def upload_images(page: Page, image_paths: list[str], timeout_ms: int = 20
     except PWTimeoutError as exc:
         raise UploadTimeoutError("Image preview did not render in time") from exc
 
+    # Local preview renders instantly from disk; Facebook's server-side upload
+    # is still async and takes longer with more images, so give it proportional
+    # time to fail before we assume it's safe to publish.
     failed_banner = page.get_by_text(SEL["upload_failed_text"])
+    grace_ms = max(2000, 1500 * len(image_paths))
     try:
-        await failed_banner.wait_for(state="visible", timeout=2000)
+        await failed_banner.wait_for(state="visible", timeout=grace_ms)
     except PWTimeoutError:
         return
     raise UploadTimeoutError("Facebook từ chối tải ảnh lên (ảnh lỗi hoặc không được hỗ trợ)")
