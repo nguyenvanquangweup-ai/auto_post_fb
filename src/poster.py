@@ -104,6 +104,15 @@ async def create_post(page: Page, content: str, timeout_ms: int = 10000) -> None
     await textbox.fill(content)
 
 
+async def toggle_anonymous(page: Page, timeout_ms: int = 5000) -> bool:
+    switch = page.get_by_role("switch", name=SEL["anonymous_toggle_name"])
+    try:
+        await switch.click(timeout=timeout_ms)
+        return True
+    except PWTimeoutError:
+        return False
+
+
 async def upload_images(page: Page, image_paths: list[str], timeout_ms: int = 20000) -> None:
     if not image_paths:
         return
@@ -163,6 +172,7 @@ class PosterConfig:
     min_delay: float
     max_delay: float
     verify_feed: bool = False
+    anonymous: bool = False
 
 
 class PosterService:
@@ -185,6 +195,8 @@ class PosterService:
         try:
             await open_group(page, group.url)
             await create_post(page, content)
+            if self.config.anonymous and not await toggle_anonymous(page):
+                self.logger.warning(f"{group.name}: group không hỗ trợ đăng ẩn danh, đăng công khai")
             await upload_images(page, images)
             await publish(page)
         except PosterError as exc:

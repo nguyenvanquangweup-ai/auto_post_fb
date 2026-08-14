@@ -74,6 +74,9 @@ Bên trái, sửa nội dung trong ô textbox (có thể dùng `{group_name}` đ
   ngẫu nhiên (Min–Max giây) giữa các group, tự retry group lỗi (tối đa 2
   lần, đẩy xuống cuối hàng đợi) trước khi đánh dấu Failed hẳn.
 - **Stop**: dừng giữa chừng bất kỳ lúc nào.
+- Tick **Đăng ẩn danh** nếu muốn đăng ẩn danh — group nào không hỗ trợ
+  chế độ này sẽ tự động đăng công khai và có log cảnh báo (màu cam) để
+  bạn biết group đó không ẩn danh được.
 - Theo dõi tiến độ ("X / Y Groups") và log realtime (xanh = thành công,
   đỏ = lỗi, cam = pending/không chắc chắn) ngay trong app.
 - Kết quả chi tiết từng group được ghi vào `logs/YYYY-MM-DD.csv` và log
