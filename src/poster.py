@@ -185,6 +185,13 @@ async def upload_images(page: Page, image_paths: list[str], timeout_ms: int = 20
     except PWTimeoutError as exc:
         raise UploadTimeoutError("Image preview did not render in time") from exc
 
+    failed_banner = page.get_by_text(SEL["upload_failed_text"])
+    try:
+        await failed_banner.wait_for(state="visible", timeout=2000)
+    except PWTimeoutError:
+        return
+    raise UploadTimeoutError("Facebook từ chối tải ảnh lên (ảnh lỗi hoặc không được hỗ trợ)")
+
 
 async def publish(page: Page, timeout_ms: int = 15000) -> None:
     publish_btn = page.get_by_role("button", name=SEL["publish_button_name"], exact=True)

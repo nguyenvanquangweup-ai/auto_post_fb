@@ -18,6 +18,7 @@ from src.selectors import SEL
 from tests.fakes import FakePage
 
 FILE_INPUT_KEY = f"css:{SEL['file_input_css']}"
+UPLOAD_FAILED_KEY = f"text:{SEL['upload_failed_text']}"
 
 
 async def test_open_group_navigates_to_url():
@@ -64,6 +65,7 @@ async def test_upload_images_empty_list_is_noop():
 
 async def test_upload_images_success_sets_files():
     page = FakePage()
+    page.configure(UPLOAD_FAILED_KEY, should_timeout=True)
     await upload_images(page, ["a.jpg", "b.jpg"])
     file_input = page._get(FILE_INPUT_KEY)
     assert file_input.uploaded_files == ["a.jpg", "b.jpg"]
@@ -72,6 +74,12 @@ async def test_upload_images_success_sets_files():
 async def test_upload_images_timeout_raises_upload_timeout_error():
     page = FakePage()
     page.configure(FILE_INPUT_KEY, should_timeout=True)
+    with pytest.raises(UploadTimeoutError):
+        await upload_images(page, ["a.jpg"])
+
+
+async def test_upload_images_facebook_rejects_file_raises_upload_timeout_error():
+    page = FakePage()
     with pytest.raises(UploadTimeoutError):
         await upload_images(page, ["a.jpg"])
 
