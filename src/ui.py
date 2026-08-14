@@ -296,11 +296,11 @@ class App(ctk.CTk):
             except Exception:
                 thumb = ctk.CTkLabel(row, text="[ảnh lỗi]")
             thumb.pack(side="left", padx=8, pady=8)
-            ctk.CTkLabel(row, text=Path(path).name, anchor="w").pack(side="left", padx=4, fill="x", expand=True)
             ctk.CTkButton(
                 row, text="✕", width=28, fg_color="#cf222e", hover_color="#a40e26",
                 command=lambda i=idx: self._remove_image(i),
             ).pack(side="right", padx=8)
+            ctk.CTkLabel(row, text=Path(path).name, anchor="w").pack(side="left", padx=4, fill="x", expand=True)
 
     # ---------- realtime log + progress ----------
 
