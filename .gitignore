@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+browser/chrome_profile/
+logs/*.log
+logs/*.csv
+.pytest_cache/
