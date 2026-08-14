@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import time
 
 from src.config import Group
 from src.poster import PosterConfig, PosterService, ResultStatus
@@ -63,6 +64,32 @@ def test_run_stops_immediately_when_stop_event_already_set():
     asyncio.run(service.run(None, groups, "content", [], stop_event))
 
     assert csv_calls == []
+
+
+def test_run_interrupts_inter_group_delay_when_stopped():
+    groups = [Group("A", "urlA"), Group("B", "urlB")]
+    results = [(ResultStatus.SUCCESS, "ok")]
+    csv_calls = []
+
+    async def fake_run_group(page, group, content_template, images):
+        result = results.pop(0)
+        stop_event.set()
+        return result
+
+    config = PosterConfig(min_delay=100.0, max_delay=100.0, verify_feed=False)
+
+    def csv_writer(group_name, status, message):
+        csv_calls.append((group_name, status, message))
+
+    service = PosterService(config, FakeLogger(), csv_writer, run_group_fn=fake_run_group)
+    stop_event = threading.Event()
+
+    start = time.monotonic()
+    asyncio.run(service.run(None, groups, "content", [], stop_event))
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 2
+    assert csv_calls == [("A", "SUCCESS", "ok")]
 
 
 def test_run_isolates_non_poster_error_to_one_group_and_continues():

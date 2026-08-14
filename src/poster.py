@@ -272,4 +272,11 @@ class PosterService:
                     on_progress(gq.done, gq.total)
             if len(gq) > 0:
                 delay = random.uniform(self.config.min_delay, self.config.max_delay)
-                await asyncio.sleep(delay)
+                await self._interruptible_sleep(delay, stop_event)
+
+    @staticmethod
+    async def _interruptible_sleep(seconds: float, stop_event: threading.Event, step: float = 0.5) -> None:
+        elapsed = 0.0
+        while elapsed < seconds and not stop_event.is_set():
+            await asyncio.sleep(min(step, seconds - elapsed))
+            elapsed += step
