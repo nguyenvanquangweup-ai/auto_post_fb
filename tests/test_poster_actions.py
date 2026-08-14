@@ -31,7 +31,7 @@ async def test_open_group_timeout_raises_group_not_found():
 async def test_create_post_clicks_trigger_and_fills_content():
     page = FakePage()
     await create_post(page, "Hello world")
-    trigger = page._get("role:button:Create post")
+    trigger = page._get("role:button:Bạn viết gì đi...")
     textbox = page._get("role:textbox:None")
     assert trigger.clicked is True
     assert textbox.filled_text == "Hello world"
@@ -39,7 +39,7 @@ async def test_create_post_clicks_trigger_and_fills_content():
 
 async def test_create_post_missing_trigger_raises_composer_not_found():
     page = FakePage()
-    page.configure("role:button:Create post", should_timeout=True)
+    page.configure("role:button:Bạn viết gì đi...", should_timeout=True)
     with pytest.raises(ComposerNotFoundError):
         await create_post(page, "Hello world")
 
@@ -74,13 +74,13 @@ async def test_upload_images_timeout_raises_upload_timeout_error():
 async def test_publish_clicks_publish_button():
     page = FakePage()
     await publish(page)
-    btn = page._get("role:button:Post")
+    btn = page._get("role:button:Đăng")
     assert btn.clicked is True
 
 
 async def test_publish_timeout_raises_publish_error():
     page = FakePage()
-    page.configure("role:button:Post", should_timeout=True)
+    page.configure("role:button:Đăng", should_timeout=True)
     with pytest.raises(PublishError):
         await publish(page)
 
@@ -94,21 +94,21 @@ async def test_detect_result_dialog_open_returns_failed():
 
 async def test_detect_result_stuck_publish_button_returns_failed():
     page = FakePage()
-    page.configure("role:button:Post", visible=True)
+    page.configure("role:button:Đăng", visible=True)
     status = await detect_result(page, "Hello world")
     assert status == ResultStatus.FAILED
 
 
 async def test_detect_result_dialog_closed_no_verify_returns_unknown():
     page = FakePage()
-    page.configure("role:button:Post", visible=False)
+    page.configure("role:button:Đăng", visible=False)
     status = await detect_result(page, "Hello world", verify_feed=False)
     assert status == ResultStatus.UNKNOWN
 
 
 async def test_detect_result_verify_feed_found_returns_success():
     page = FakePage()
-    page.configure("role:button:Post", visible=False)
+    page.configure("role:button:Đăng", visible=False)
     page.configure("text:Hello world", visible=True)
     status = await detect_result(page, "Hello world", verify_feed=True)
     assert status == ResultStatus.SUCCESS
@@ -116,7 +116,7 @@ async def test_detect_result_verify_feed_found_returns_success():
 
 async def test_detect_result_verify_feed_not_found_returns_unknown():
     page = FakePage()
-    page.configure("role:button:Post", visible=False)
+    page.configure("role:button:Đăng", visible=False)
     page.configure("text:Hello world", visible=False)
     status = await detect_result(page, "Hello world", verify_feed=True)
     assert status == ResultStatus.UNKNOWN
