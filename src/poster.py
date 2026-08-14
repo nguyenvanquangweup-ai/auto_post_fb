@@ -222,7 +222,7 @@ async def detect_result(
         pass
 
     if not verify_feed:
-        return ResultStatus.UNKNOWN
+        return ResultStatus.SUCCESS
 
     try:
         await page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
