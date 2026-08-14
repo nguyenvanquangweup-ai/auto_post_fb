@@ -82,8 +82,19 @@ Bên trái, sửa nội dung trong ô textbox (có thể dùng `{group_name}` đ
   trợ đăng ẩn danh — kết quả hiện dấu **✓** (hỗ trợ) hoặc **✗** (không hỗ
   trợ, checkbox Ẩn danh bị khoá) ngay trong bảng, lưu lại cho các lần
   đăng sau.
+- Checkbox **"Xác nhận đăng thành công (reload feed)"** (panel trái, dưới
+  Delay): không tick thì chỉ kiểm tra composer đã đóng + nút Đăng biến
+  mất, ghi kết quả là **UNKNOWN** (không chắc chắn); tick lên thì sau khi
+  đăng sẽ reload lại trang group, tìm đoạn đầu nội dung vừa đăng trên
+  feed để ghi **SUCCESS** thật. Verify này chỉ để ghi nhãn kết quả cho
+  chính xác hơn — bài vẫn đã đăng lên FB bình thường dù verify không tìm
+  thấy (feed đông bài mới có thể chưa kịp render), tool không đăng lại
+  hay retry vì lý do này.
 - Theo dõi tiến độ ("X / Y Groups") và log realtime (xanh = thành công,
   đỏ = lỗi, cam = pending/không chắc chắn) ngay trong app.
+- Đăng xong (hoặc bấm Stop giữa chừng), 1 popup tự hiện liệt kê từng
+  group: trạng thái (Thành công/Thất bại/Không chắc) + lý do lỗi nếu có,
+  kèm dòng tổng "X/Y thành công" — không cần cuộn log để nắm tình hình.
 - Kết quả chi tiết từng group được ghi vào `logs/YYYY-MM-DD.csv` và log
   đầy đủ (kèm traceback nếu lỗi) tại `logs/app.log`.
 
