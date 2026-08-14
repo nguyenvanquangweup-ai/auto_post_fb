@@ -38,12 +38,21 @@ class FakeLocator:
         return self.visible
 
 
+class FakeKeyboard:
+    def __init__(self):
+        self.pressed: list[str] = []
+
+    async def press(self, key: str) -> None:
+        self.pressed.append(key)
+
+
 class FakePage:
     def __init__(self):
         self.goto_calls: list[str] = []
         self.reload_calls = 0
         self.should_goto_timeout = False
         self._locators: dict[str, FakeLocator] = {}
+        self.keyboard = FakeKeyboard()
 
     def configure(self, key: str, *, should_timeout: bool = False, visible: bool = True) -> None:
         self._locators[key] = FakeLocator(should_timeout=should_timeout, visible=visible)

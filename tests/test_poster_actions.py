@@ -6,10 +6,12 @@ from src.poster import (
     PublishError,
     ResultStatus,
     UploadTimeoutError,
+    check_anonymous_support,
     create_post,
     detect_result,
     open_group,
     publish,
+    toggle_anonymous,
     upload_images,
 )
 from src.selectors import SEL
@@ -86,6 +88,44 @@ async def test_publish_timeout_raises_publish_error():
     page.configure("role:button:Đăng", should_timeout=True)
     with pytest.raises(PublishError):
         await publish(page)
+
+
+async def test_toggle_anonymous_clicks_switch_and_dismisses_ok_dialog():
+    page = FakePage()
+    result = await toggle_anonymous(page)
+    switch = page._get("role:switch:Bật/tắt bài viết ẩn danh")
+    ok_btn = page._get("role:button:OK")
+    assert result is True
+    assert switch.clicked is True
+    assert ok_btn.clicked is True
+
+
+async def test_toggle_anonymous_switch_missing_returns_false():
+    page = FakePage()
+    page.configure("role:switch:Bật/tắt bài viết ẩn danh", should_timeout=True)
+    result = await toggle_anonymous(page)
+    assert result is False
+
+
+async def test_toggle_anonymous_ok_dialog_missing_still_returns_true():
+    page = FakePage()
+    page.configure("role:button:OK", should_timeout=True)
+    result = await toggle_anonymous(page)
+    assert result is True
+
+
+async def test_check_anonymous_support_switch_visible_returns_true():
+    page = FakePage()
+    result = await check_anonymous_support(page, "https://facebook.com/groups/1")
+    assert result is True
+    assert page.keyboard.pressed == ["Escape"]
+
+
+async def test_check_anonymous_support_switch_missing_returns_false():
+    page = FakePage()
+    page.configure("role:switch:Bật/tắt bài viết ẩn danh", should_timeout=True)
+    result = await check_anonymous_support(page, "https://facebook.com/groups/1")
+    assert result is False
 
 
 async def test_detect_result_dialog_open_returns_failed():

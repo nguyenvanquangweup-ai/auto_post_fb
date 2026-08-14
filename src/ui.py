@@ -268,7 +268,10 @@ class App(ctk.CTk):
         self.wait_window(dialog)
         if dialog.result:
             name, url = dialog.result
-            self.groups[idx] = Group(name=name, url=url)
+            self.groups[idx] = Group(
+                name=name, url=url,
+                anonymous=group.anonymous, anonymous_supported=group.anonymous_supported,
+            )
             save_groups(self.groups_path, self.groups)
             self._refresh_group_table()
 
