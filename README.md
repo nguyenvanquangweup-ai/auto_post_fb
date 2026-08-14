@@ -11,6 +11,7 @@ python3.12 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 playwright install chromium
+playwright install-deps chromium  # Linux: cài thư viện hệ thống cho Chromium (vd: libnspr4, libnss3)
 ```
 
 ## 2. Đăng nhập Facebook lần đầu

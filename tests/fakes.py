@@ -58,7 +58,7 @@ class FakePage:
         if self.should_goto_timeout:
             raise PWTimeoutError("fake timeout")
 
-    def get_by_role(self, role: str, name: str | None = None) -> FakeLocator:
+    def get_by_role(self, role: str, name: str | None = None, exact: bool = False) -> FakeLocator:
         return self._get(f"role:{role}:{name}")
 
     def get_by_text(self, text: str) -> FakeLocator:

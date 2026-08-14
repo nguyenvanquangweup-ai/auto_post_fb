@@ -12,6 +12,7 @@ from typing import Callable
 from playwright.async_api import Page, TimeoutError as PWTimeoutError
 
 from src.config import Group
+from src.logger import SUCCESS_LEVEL
 from src.selectors import SEL
 
 
@@ -89,13 +90,13 @@ async def open_group(page: Page, url: str, timeout_ms: int = 15000) -> None:
 
 
 async def create_post(page: Page, content: str, timeout_ms: int = 10000) -> None:
-    trigger = page.get_by_role("button", name=SEL["create_post_trigger_name"])
+    trigger = page.get_by_role("button", name=SEL["create_post_trigger_name"], exact=True)
     try:
         await trigger.click(timeout=timeout_ms)
     except PWTimeoutError as exc:
         raise ComposerNotFoundError("Could not find 'Create post' trigger") from exc
 
-    textbox = page.get_by_role("textbox")
+    textbox = page.get_by_role("textbox").first
     try:
         await textbox.wait_for(state="visible", timeout=timeout_ms)
     except PWTimeoutError as exc:
@@ -119,7 +120,7 @@ async def upload_images(page: Page, image_paths: list[str], timeout_ms: int = 20
 
 
 async def publish(page: Page, timeout_ms: int = 15000) -> None:
-    publish_btn = page.get_by_role("button", name=SEL["publish_button_name"])
+    publish_btn = page.get_by_role("button", name=SEL["publish_button_name"], exact=True)
     try:
         await publish_btn.click(timeout=timeout_ms)
     except PWTimeoutError as exc:
@@ -133,13 +134,13 @@ async def detect_result(
     timeout_ms: int = 10000,
 ) -> ResultStatus:
     try:
-        await page.get_by_role("dialog").wait_for(state="hidden", timeout=timeout_ms)
+        await page.get_by_role("dialog").first.wait_for(state="hidden", timeout=timeout_ms)
     except PWTimeoutError:
         return ResultStatus.FAILED
 
     # Check if publish button is gone (signal 2: successful publish removes the button)
     try:
-        is_visible = await page.get_by_role("button", name=SEL["publish_button_name"]).is_visible(timeout=timeout_ms)
+        is_visible = await page.get_by_role("button", name=SEL["publish_button_name"], exact=True).is_visible(timeout=timeout_ms)
         if is_visible:
             return ResultStatus.FAILED
     except PWTimeoutError:
@@ -206,14 +207,25 @@ class PosterService:
                 self.logger.info("Stopped by user")
                 break
             task = gq.pop_next()
-            status, message = await self._run_group_fn(page, task.group, content_template, images)
+            try:
+                status, message = await self._run_group_fn(page, task.group, content_template, images)
+            except Exception as exc:
+                self.logger.exception(f"{task.group.name}: unexpected error")
+                status, message = ResultStatus.FAILED, str(exc)
             if status == ResultStatus.FAILED and gq.requeue(task):
                 self.logger.info(f"{task.group.name}: retry scheduled (attempt {task.attempts})")
             else:
                 gq.mark_done()
                 self.csv_writer(task.group.name, status.value, message)
-                self.logger.info(f"{task.group.name}: {status.value} ({gq.done}/{gq.total})")
+                result_line = f"{task.group.name}: {status.value} ({gq.done}/{gq.total})"
+                if status == ResultStatus.SUCCESS:
+                    self.logger.log(SUCCESS_LEVEL, result_line)
+                elif status == ResultStatus.FAILED:
+                    self.logger.error(result_line)
+                else:
+                    self.logger.warning(result_line)
                 if on_progress:
                     on_progress(gq.done, gq.total)
-            delay = random.uniform(self.config.min_delay, self.config.max_delay)
-            await asyncio.sleep(delay)
+            if len(gq) > 0:
+                delay = random.uniform(self.config.min_delay, self.config.max_delay)
+                await asyncio.sleep(delay)

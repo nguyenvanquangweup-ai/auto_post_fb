@@ -9,6 +9,18 @@ class FakeLogger:
     def info(self, msg):
         pass
 
+    def error(self, msg):
+        pass
+
+    def warning(self, msg):
+        pass
+
+    def exception(self, msg):
+        pass
+
+    def log(self, level, msg):
+        pass
+
 
 def make_service(run_group_results, csv_calls):
     async def fake_run_group(page, group, content_template, images):
@@ -51,6 +63,29 @@ def test_run_stops_immediately_when_stop_event_already_set():
     asyncio.run(service.run(None, groups, "content", [], stop_event))
 
     assert csv_calls == []
+
+
+def test_run_isolates_non_poster_error_to_one_group_and_continues():
+    groups = [Group("A", "urlA"), Group("B", "urlB")]
+    csv_calls = []
+
+    async def fake_run_group(page, group, content_template, images):
+        if group.name == "A":
+            raise Exception("boom")
+        return (ResultStatus.SUCCESS, "ok")
+
+    config = PosterConfig(min_delay=0.0, max_delay=0.0, verify_feed=False)
+
+    def csv_writer(group_name, status, message):
+        csv_calls.append((group_name, status, message))
+
+    service = PosterService(config, FakeLogger(), csv_writer, run_group_fn=fake_run_group)
+    stop_event = threading.Event()
+
+    asyncio.run(service.run(None, groups, "content", [], stop_event))
+
+    assert ("B", "SUCCESS", "ok") in csv_calls
+    assert any(name == "A" and status == "FAILED" for name, status, _ in csv_calls)
 
 
 def test_run_calls_on_progress_after_each_terminal_group():

@@ -5,6 +5,9 @@ import logging
 import queue
 from pathlib import Path
 
+SUCCESS_LEVEL = 25
+logging.addLevelName(SUCCESS_LEVEL, "SUCCESS")
+
 
 class QueueLogHandler(logging.Handler):
     def __init__(self, log_queue: queue.Queue):
