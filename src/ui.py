@@ -404,6 +404,8 @@ class App(ctk.CTk):
     async def _login_flow(self) -> None:
         browser = BrowserManager(self.profile_dir)
         await browser.launch()
+        page = await browser.get_page()
+        await page.goto("https://www.facebook.com/")
         self.logger.info("Đã mở Chrome. Đăng nhập Facebook nếu cần. Bấm Stop để đóng và lưu phiên đăng nhập.")
         try:
             while not self.stop_event.is_set():
