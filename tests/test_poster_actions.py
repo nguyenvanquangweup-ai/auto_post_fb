@@ -100,6 +100,17 @@ async def test_toggle_anonymous_clicks_switch_and_dismisses_ok_dialog():
     assert ok_btn.clicked is True
 
 
+async def test_toggle_anonymous_already_checked_skips_click():
+    page = FakePage()
+    page.configure("role:switch:Bật/tắt bài viết ẩn danh", checked="true")
+    result = await toggle_anonymous(page)
+    switch = page._get("role:switch:Bật/tắt bài viết ẩn danh")
+    ok_btn = page._get("role:button:OK")
+    assert result is True
+    assert switch.clicked is False
+    assert ok_btn.clicked is False
+
+
 async def test_toggle_anonymous_switch_missing_returns_false():
     page = FakePage()
     page.configure("role:switch:Bật/tắt bài viết ẩn danh", should_timeout=True)

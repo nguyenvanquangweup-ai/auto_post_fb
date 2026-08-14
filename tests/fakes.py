@@ -4,12 +4,13 @@ from playwright.async_api import TimeoutError as PWTimeoutError
 
 
 class FakeLocator:
-    def __init__(self, *, should_timeout: bool = False, visible: bool = True):
+    def __init__(self, *, should_timeout: bool = False, visible: bool = True, checked: str = "false"):
         self.should_timeout = should_timeout
         self.visible = visible
         self.clicked = False
         self.filled_text: str | None = None
         self.uploaded_files: list[str] | None = None
+        self.checked = checked
 
     @property
     def first(self) -> "FakeLocator":
@@ -23,6 +24,11 @@ class FakeLocator:
         if self.should_timeout:
             raise PWTimeoutError("fake timeout")
         self.clicked = True
+
+    async def get_attribute(self, name: str) -> str | None:
+        if name == "aria-checked":
+            return self.checked
+        return None
 
     async def fill(self, text: str) -> None:
         self.filled_text = text
@@ -54,8 +60,10 @@ class FakePage:
         self._locators: dict[str, FakeLocator] = {}
         self.keyboard = FakeKeyboard()
 
-    def configure(self, key: str, *, should_timeout: bool = False, visible: bool = True) -> None:
-        self._locators[key] = FakeLocator(should_timeout=should_timeout, visible=visible)
+    def configure(
+        self, key: str, *, should_timeout: bool = False, visible: bool = True, checked: str = "false"
+    ) -> None:
+        self._locators[key] = FakeLocator(should_timeout=should_timeout, visible=visible, checked=checked)
 
     def _get(self, key: str) -> FakeLocator:
         if key not in self._locators:

@@ -107,6 +107,14 @@ async def create_post(page: Page, content: str, timeout_ms: int = 10000) -> None
 async def toggle_anonymous(page: Page, timeout_ms: int = 5000) -> bool:
     switch = page.get_by_role("switch", name=SEL["anonymous_toggle_name"])
     try:
+        await switch.wait_for(state="visible", timeout=timeout_ms)
+    except PWTimeoutError:
+        return False
+
+    if await switch.get_attribute("aria-checked") == "true":
+        return True
+
+    try:
         await switch.click(timeout=timeout_ms)
     except PWTimeoutError:
         return False

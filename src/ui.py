@@ -363,7 +363,7 @@ class App(ctk.CTk):
         success_count = sum(1 for _, status, _ in results if status == "SUCCESS")
         popup = ctk.CTkToplevel(self)
         popup.title("Kết quả đăng bài")
-        popup.geometry("560x420")
+        popup.geometry("640x460")
         popup.grab_set()
 
         ctk.CTkLabel(
@@ -373,27 +373,41 @@ class App(ctk.CTk):
 
         table = ctk.CTkScrollableFrame(popup)
         table.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+        table.grid_columnconfigure(0, weight=0, minsize=100)
+        table.grid_columnconfigure(1, weight=1, minsize=180)
+        table.grid_columnconfigure(2, weight=1, minsize=180)
 
         status_display = {
             "SUCCESS": ("Thành công", "#1a7f37"),
             "FAILED": ("Thất bại", "#cf222e"),
             "UNKNOWN": ("Không chắc", "#bf8700"),
         }
-        for name, status, message in results:
-            label, color = status_display.get(status, (status, "#57606a"))
-            row = ctk.CTkFrame(table, fg_color="transparent")
-            row.pack(fill="x", pady=2)
-            ctk.CTkLabel(row, text=label, text_color=color, width=90, anchor="w").pack(side="left")
-            text_frame = ctk.CTkFrame(row, fg_color="transparent")
-            text_frame.pack(side="left", fill="x", expand=True, padx=(4, 0))
-            ctk.CTkLabel(text_frame, text=name, anchor="w", justify="left", wraplength=420).pack(
-                anchor="w", fill="x"
+        border_color = "#4a4a4a"
+
+        for col, text in enumerate(("Trạng thái", "Group", "Ghi chú")):
+            ctk.CTkLabel(table, text=text, font=("", 12, "bold"), anchor="w").grid(
+                row=0, column=col, sticky="ew", padx=(0 if col == 0 else 12, 0), pady=(0, 6)
             )
-            if message and message != status:
-                ctk.CTkLabel(
-                    text_frame, text=message, anchor="w", justify="left", wraplength=420,
-                    text_color="gray", font=("", 11),
-                ).pack(anchor="w", fill="x")
+        ctk.CTkFrame(table, height=1, fg_color=border_color).grid(
+            row=1, column=0, columnspan=3, sticky="ew", pady=(0, 6)
+        )
+
+        for i, (name, status, message) in enumerate(results):
+            r = 2 + i * 2
+            label, color = status_display.get(status, (status, "#57606a"))
+            note = message if message and message != status else "-"
+            ctk.CTkLabel(table, text=label, text_color=color, anchor="w").grid(
+                row=r, column=0, sticky="nw", pady=6
+            )
+            ctk.CTkLabel(table, text=name, anchor="w", justify="left", wraplength=200).grid(
+                row=r, column=1, sticky="nw", padx=(12, 0), pady=6
+            )
+            ctk.CTkLabel(
+                table, text=note, anchor="w", justify="left", wraplength=200, text_color="gray",
+            ).grid(row=r, column=2, sticky="nw", padx=(12, 0), pady=6)
+            ctk.CTkFrame(table, height=1, fg_color=border_color).grid(
+                row=r + 1, column=0, columnspan=3, sticky="ew", pady=(6, 0)
+            )
 
         ctk.CTkButton(popup, text="Đóng", command=popup.destroy).pack(pady=(0, 16))
 
