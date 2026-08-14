@@ -25,7 +25,7 @@ def test_save_groups_writes_json(tmp_path):
     p = tmp_path / "groups.json"
     save_groups(p, [Group(name="A", url="https://facebook.com/groups/1")])
     data = json.loads(p.read_text(encoding="utf-8"))
-    assert data == [{"name": "A", "url": "https://facebook.com/groups/1"}]
+    assert data == [{"name": "A", "url": "https://facebook.com/groups/1", "anonymous": False}]
 
 
 def test_load_groups_missing_file_raises(tmp_path):

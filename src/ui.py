@@ -90,7 +90,6 @@ class App(ctk.CTk):
         self.stop_event = threading.Event()
         self.worker_thread: threading.Thread | None = None
         self.verify_feed_var = ctk.BooleanVar(value=False)
-        self.anonymous_var = ctk.BooleanVar(value=False)
 
         self.logger = setup_logging(self.log_queue, self.logs_dir)
 
@@ -141,11 +140,6 @@ class App(ctk.CTk):
             parent,
             text="Xác nhận đăng thành công (reload feed)",
             variable=self.verify_feed_var,
-        ).pack(anchor="w", padx=12, pady=(0, 4))
-        ctk.CTkCheckBox(
-            parent,
-            text="Đăng ẩn danh (group không hỗ trợ sẽ tự đăng công khai, có log cảnh báo)",
-            variable=self.anonymous_var,
         ).pack(anchor="w", padx=12, pady=(0, 12))
 
     def _build_right_panel(self, parent: ctk.CTkFrame) -> None:
@@ -218,14 +212,23 @@ class App(ctk.CTk):
         for child in self.group_table.winfo_children():
             child.destroy()
         self.group_vars = []
-        for group in self.groups:
+        for idx, group in enumerate(self.groups):
             var = ctk.BooleanVar(value=True)
+            anon_var = ctk.BooleanVar(value=group.anonymous)
             row = ctk.CTkFrame(self.group_table, fg_color="transparent")
             row.pack(fill="x", pady=2)
             ctk.CTkCheckBox(row, text="", variable=var, width=20).pack(side="left")
-            ctk.CTkLabel(row, text=group.name, width=180, anchor="w").pack(side="left", padx=4)
+            ctk.CTkCheckBox(
+                row, text="Ẩn danh", variable=anon_var, width=20,
+                command=lambda i=idx, v=anon_var: self._set_group_anonymous(i, v.get()),
+            ).pack(side="left", padx=(4, 8))
+            ctk.CTkLabel(row, text=group.name, width=160, anchor="w").pack(side="left", padx=4)
             ctk.CTkLabel(row, text=group.url, anchor="w", text_color="gray").pack(side="left", padx=4)
             self.group_vars.append(var)
+
+    def _set_group_anonymous(self, idx: int, value: bool) -> None:
+        self.groups[idx].anonymous = value
+        save_groups(self.groups_path, self.groups)
 
     def _selected_groups(self) -> list[Group]:
         return [g for g, v in zip(self.groups, self.group_vars) if v.get()]
@@ -355,7 +358,7 @@ class App(ctk.CTk):
     def _on_login(self) -> None:
         self._run_in_worker(self._login_flow)
 
-    def _prepare_post_args(self) -> tuple[str, list[str], float, float, bool, bool] | None:
+    def _prepare_post_args(self) -> tuple[str, list[str], float, float, bool] | None:
         # Reads content/delay widgets and saves config on the UI thread only —
         # _post_flow (worker thread) must never touch Tkinter widgets directly.
         post = self._save_current_post_config()
@@ -364,10 +367,7 @@ class App(ctk.CTk):
             self.logger.error(f"Thiếu ảnh: {', '.join(missing)}")
             return None
         min_delay, max_delay = self._read_delays()
-        return (
-            post.content, list(post.images), min_delay, max_delay,
-            self.verify_feed_var.get(), self.anonymous_var.get(),
-        )
+        return post.content, list(post.images), min_delay, max_delay, self.verify_feed_var.get()
 
     def _on_test_one(self) -> None:
         selected = self._selected_groups()
@@ -377,10 +377,8 @@ class App(ctk.CTk):
         args = self._prepare_post_args()
         if args is None:
             return
-        content, images, min_delay, max_delay, verify_feed, anonymous = args
-        self._run_in_worker(
-            lambda: self._post_flow([selected[0]], content, images, min_delay, max_delay, verify_feed, anonymous)
-        )
+        content, images, min_delay, max_delay, verify_feed = args
+        self._run_in_worker(lambda: self._post_flow([selected[0]], content, images, min_delay, max_delay, verify_feed))
 
     def _on_start(self) -> None:
         selected = self._selected_groups()
@@ -390,10 +388,8 @@ class App(ctk.CTk):
         args = self._prepare_post_args()
         if args is None:
             return
-        content, images, min_delay, max_delay, verify_feed, anonymous = args
-        self._run_in_worker(
-            lambda: self._post_flow(selected, content, images, min_delay, max_delay, verify_feed, anonymous)
-        )
+        content, images, min_delay, max_delay, verify_feed = args
+        self._run_in_worker(lambda: self._post_flow(selected, content, images, min_delay, max_delay, verify_feed))
 
     def _on_stop(self) -> None:
         self.stop_event.set()
@@ -433,11 +429,8 @@ class App(ctk.CTk):
         min_delay: float,
         max_delay: float,
         verify_feed: bool,
-        anonymous: bool,
     ) -> None:
-        config = PosterConfig(
-            min_delay=min_delay, max_delay=max_delay, verify_feed=verify_feed, anonymous=anonymous,
-        )
+        config = PosterConfig(min_delay=min_delay, max_delay=max_delay, verify_feed=verify_feed)
         csv_path = self.logs_dir / f"{time.strftime('%Y-%m-%d')}.csv"
 
         def csv_writer(group_name: str, status: str, message: str) -> None:

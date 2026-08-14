@@ -172,7 +172,6 @@ class PosterConfig:
     min_delay: float
     max_delay: float
     verify_feed: bool = False
-    anonymous: bool = False
 
 
 class PosterService:
@@ -195,7 +194,7 @@ class PosterService:
         try:
             await open_group(page, group.url)
             await create_post(page, content)
-            if self.config.anonymous and not await toggle_anonymous(page):
+            if group.anonymous and not await toggle_anonymous(page):
                 self.logger.warning(f"{group.name}: group không hỗ trợ đăng ẩn danh, đăng công khai")
             await upload_images(page, images)
             await publish(page)

@@ -13,6 +13,7 @@ class ConfigError(Exception):
 class Group:
     name: str
     url: str
+    anonymous: bool = False
 
 
 @dataclass
@@ -25,7 +26,7 @@ def load_groups(path: Path) -> list[Group]:
     if not path.exists():
         raise ConfigError(f"Groups file not found: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
-    return [Group(name=item["name"], url=item["url"]) for item in data]
+    return [Group(name=item["name"], url=item["url"], anonymous=item.get("anonymous", False)) for item in data]
 
 
 def save_groups(path: Path, groups: list[Group]) -> None:
