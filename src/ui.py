@@ -6,6 +6,7 @@ import threading
 import time
 from pathlib import Path
 from tkinter import filedialog, messagebox
+from typing import Any, Callable, Coroutine
 
 import customtkinter as ctk
 from PIL import Image
@@ -36,7 +37,7 @@ LOG_COLORS = {
 
 
 class GroupDialog(ctk.CTkToplevel):
-    def __init__(self, master, title: str, name: str = "", url: str = ""):
+    def __init__(self, master: ctk.CTk, title: str, name: str = "", url: str = "") -> None:
         super().__init__(master)
         self.title(title)
         self.geometry("420x180")
@@ -59,7 +60,7 @@ class GroupDialog(ctk.CTkToplevel):
 
         self.grab_set()
 
-    def _on_save(self):
+    def _on_save(self) -> None:
         name = self.name_entry.get().strip()
         url = self.url_entry.get().strip()
         if not name or not url:
@@ -70,7 +71,7 @@ class GroupDialog(ctk.CTkToplevel):
 
 
 class App(ctk.CTk):
-    def __init__(self, base_dir: Path):
+    def __init__(self, base_dir: Path) -> None:
         super().__init__()
         self.base_dir = base_dir
         self.groups_path = base_dir / "config" / "groups.json"
@@ -99,7 +100,7 @@ class App(ctk.CTk):
 
     # ---------- UI construction ----------
 
-    def _build_ui(self):
+    def _build_ui(self) -> None:
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -112,7 +113,7 @@ class App(ctk.CTk):
         self._build_left_panel(left)
         self._build_right_panel(right)
 
-    def _build_left_panel(self, parent):
+    def _build_left_panel(self, parent: ctk.CTkFrame) -> None:
         ctk.CTkLabel(parent, text="Nội dung bài đăng", font=("", 14, "bold")).pack(anchor="w", padx=12, pady=(12, 4))
         self.content_box = ctk.CTkTextbox(parent, height=180)
         self.content_box.pack(fill="x", padx=12)
@@ -138,7 +139,7 @@ class App(ctk.CTk):
         self.max_delay_entry.insert(0, "40")
         self.max_delay_entry.pack(side="left", padx=4)
 
-    def _build_right_panel(self, parent):
+    def _build_right_panel(self, parent: ctk.CTkFrame) -> None:
         ctk.CTkLabel(parent, text="Facebook Groups", font=("", 14, "bold")).pack(anchor="w", padx=12, pady=(12, 4))
 
         self.group_table = ctk.CTkScrollableFrame(parent, height=220)
@@ -171,16 +172,18 @@ class App(ctk.CTk):
 
     # ---------- config load/save ----------
 
-    def _load_initial_config(self):
+    def _load_initial_config(self) -> None:
         try:
             self.groups = load_groups(self.groups_path)
-        except Exception:
+        except Exception as exc:
+            self.logger.warning(f"Không tải được {self.groups_path.name}: {exc}")
             self.groups = []
         self._refresh_group_table()
 
         try:
             post = load_post_config(self.post_path)
-        except Exception:
+        except Exception as exc:
+            self.logger.warning(f"Không tải được {self.post_path.name}: {exc}")
             post = PostConfig(content="", images=[])
         self.content_box.insert("1.0", post.content)
         self.image_paths = list(post.images)
@@ -194,7 +197,7 @@ class App(ctk.CTk):
 
     # ---------- group table ----------
 
-    def _refresh_group_table(self):
+    def _refresh_group_table(self) -> None:
         for child in self.group_table.winfo_children():
             child.destroy()
         self.group_vars = []
@@ -210,7 +213,7 @@ class App(ctk.CTk):
     def _selected_groups(self) -> list[Group]:
         return [g for g, v in zip(self.groups, self.group_vars) if v.get()]
 
-    def _add_group(self):
+    def _add_group(self) -> None:
         dialog = GroupDialog(self, "Add Group")
         self.wait_window(dialog)
         if dialog.result:
@@ -219,7 +222,7 @@ class App(ctk.CTk):
             save_groups(self.groups_path, self.groups)
             self._refresh_group_table()
 
-    def _edit_group(self):
+    def _edit_group(self) -> None:
         selected = [i for i, v in enumerate(self.group_vars) if v.get()]
         if len(selected) != 1:
             messagebox.showinfo("Edit Group", "Chọn đúng 1 group để sửa")
@@ -234,7 +237,7 @@ class App(ctk.CTk):
             save_groups(self.groups_path, self.groups)
             self._refresh_group_table()
 
-    def _delete_group(self):
+    def _delete_group(self) -> None:
         selected = {i for i, v in enumerate(self.group_vars) if v.get()}
         if not selected:
             messagebox.showinfo("Delete Group", "Chọn ít nhất 1 group để xoá")
@@ -243,7 +246,7 @@ class App(ctk.CTk):
         save_groups(self.groups_path, self.groups)
         self._refresh_group_table()
 
-    def _import_groups_json(self):
+    def _import_groups_json(self) -> None:
         path = filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
         if not path:
             return
@@ -258,19 +261,19 @@ class App(ctk.CTk):
 
     # ---------- images ----------
 
-    def _add_images(self):
+    def _add_images(self) -> None:
         paths = filedialog.askopenfilenames(filetypes=[("Images", "*.jpg *.jpeg *.png")])
         self.image_paths.extend(paths)
         self._refresh_image_list()
 
-    def _remove_selected_image(self):
+    def _remove_selected_image(self) -> None:
         if self.selected_image_index is None:
             return
         del self.image_paths[self.selected_image_index]
         self.selected_image_index = None
         self._refresh_image_list()
 
-    def _refresh_image_list(self):
+    def _refresh_image_list(self) -> None:
         for child in self.image_frame.winfo_children():
             child.destroy()
         for idx, path in enumerate(self.image_paths):
@@ -290,12 +293,12 @@ class App(ctk.CTk):
             row.bind("<Button-1>", lambda e, i=idx: self._select_image(i))
             label.bind("<Button-1>", lambda e, i=idx: self._select_image(i))
 
-    def _select_image(self, idx: int):
+    def _select_image(self, idx: int) -> None:
         self.selected_image_index = idx
 
     # ---------- realtime log + progress ----------
 
-    def _drain_log_queue(self):
+    def _drain_log_queue(self) -> None:
         try:
             while True:
                 level, message = self.log_queue.get_nowait()
@@ -304,7 +307,7 @@ class App(ctk.CTk):
             pass
         self.after(100, self._drain_log_queue)
 
-    def _append_log(self, level: str, message: str):
+    def _append_log(self, level: str, message: str) -> None:
         self.log_box.configure(state="normal")
         self.log_box.insert("end", message + "\n")
         tag = f"tag_{level}"
@@ -315,7 +318,7 @@ class App(ctk.CTk):
         self.log_box.configure(state="disabled")
         self.log_box.see("end")
 
-    def _drain_progress_queue(self):
+    def _drain_progress_queue(self) -> None:
         try:
             while True:
                 done, total = self.progress_queue.get_nowait()
@@ -337,55 +340,72 @@ class App(ctk.CTk):
             max_d = min_d
         return min_d, max_d
 
-    def _on_login(self):
+    def _on_login(self) -> None:
         self._run_in_worker(self._login_flow)
 
-    def _on_test_one(self):
+    def _prepare_post_args(self) -> tuple[str, list[str], float, float] | None:
+        # Reads content/delay widgets and saves config on the UI thread only —
+        # _post_flow (worker thread) must never touch Tkinter widgets directly.
+        post = self._save_current_post_config()
+        missing = validate_post_config(post, self.base_dir)
+        if missing:
+            self.logger.error(f"Thiếu ảnh: {', '.join(missing)}")
+            return None
+        min_delay, max_delay = self._read_delays()
+        return post.content, list(post.images), min_delay, max_delay
+
+    def _on_test_one(self) -> None:
         selected = self._selected_groups()
         if not selected:
             messagebox.showinfo("Test 1 Group", "Chọn 1 group để test")
             return
-        self._run_in_worker(lambda: self._post_flow([selected[0]]))
+        args = self._prepare_post_args()
+        if args is None:
+            return
+        content, images, min_delay, max_delay = args
+        self._run_in_worker(lambda: self._post_flow([selected[0]], content, images, min_delay, max_delay))
 
-    def _on_start(self):
+    def _on_start(self) -> None:
         selected = self._selected_groups()
         if not selected:
             messagebox.showinfo("Start Posting", "Chọn ít nhất 1 group")
             return
-        self._run_in_worker(lambda: self._post_flow(selected))
+        args = self._prepare_post_args()
+        if args is None:
+            return
+        content, images, min_delay, max_delay = args
+        self._run_in_worker(lambda: self._post_flow(selected, content, images, min_delay, max_delay))
 
-    def _on_stop(self):
+    def _on_stop(self) -> None:
         self.stop_event.set()
 
-    def _run_in_worker(self, coro_factory):
+    def _run_in_worker(self, coro_factory: Callable[[], Coroutine[Any, Any, None]]) -> None:
         if self.worker_thread and self.worker_thread.is_alive():
             messagebox.showinfo("Đang chạy", "Đang có tác vụ chạy, chờ hoàn thành hoặc bấm Stop")
             return
         self.stop_event = threading.Event()
 
-        def target():
-            asyncio.run(coro_factory())
+        def target() -> None:
+            try:
+                asyncio.run(coro_factory())
+            except Exception as exc:
+                self.logger.error(f"Lỗi worker: {exc}")
 
         self.worker_thread = threading.Thread(target=target, daemon=True)
         self.worker_thread.start()
 
-    async def _login_flow(self):
+    async def _login_flow(self) -> None:
         browser = BrowserManager(self.profile_dir)
         await browser.launch()
         self.logger.info("Đã mở Chrome. Đăng nhập Facebook nếu cần, cửa sổ này giữ nguyên phiên đăng nhập cho lần sau.")
 
-    async def _post_flow(self, groups: list[Group]):
-        post = self._save_current_post_config()
-        missing = validate_post_config(post, self.base_dir)
-        if missing:
-            self.logger.error(f"Thiếu ảnh: {', '.join(missing)}")
-            return
-
-        min_delay, max_delay = self._read_delays()
+    async def _post_flow(
+        self, groups: list[Group], content: str, images: list[str], min_delay: float, max_delay: float
+    ) -> None:
         config = PosterConfig(min_delay=min_delay, max_delay=max_delay, verify_feed=False)
         csv_path = self.logs_dir / f"{time.strftime('%Y-%m-%d')}.csv"
 
-        def csv_writer(group_name: str, status: str, message: str):
+        def csv_writer(group_name: str, status: str, message: str) -> None:
             write_csv_result(csv_path, time.strftime("%Y-%m-%d %H:%M:%S"), group_name, status, message)
 
         service = PosterService(config, self.logger, csv_writer)
@@ -396,7 +416,7 @@ class App(ctk.CTk):
         page = await browser.get_page()
         try:
             await service.run(
-                page, groups, post.content, list(post.images), self.stop_event,
+                page, groups, content, images, self.stop_event,
                 on_progress=lambda d, t: self.progress_queue.put((d, t)),
             )
         finally:
