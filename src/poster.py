@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+import enum
+import logging
+import random
+import threading
 from collections import deque
 from dataclasses import dataclass
+from typing import Callable
+
+from playwright.async_api import Page, TimeoutError as PWTimeoutError
 
 from src.config import Group
+from src.selectors import SEL
 
 
 class _SafeSubstDict(dict):
@@ -44,13 +53,6 @@ class GroupQueue:
 
     def mark_done(self) -> None:
         self.done += 1
-
-
-import enum
-
-from playwright.async_api import Page, TimeoutError as PWTimeoutError
-
-from src.selectors import SEL
 
 
 class PosterError(Exception):
@@ -153,3 +155,65 @@ async def detect_result(
         return ResultStatus.SUCCESS if found else ResultStatus.UNKNOWN
     except PWTimeoutError:
         return ResultStatus.UNKNOWN
+
+
+@dataclass
+class PosterConfig:
+    min_delay: float
+    max_delay: float
+    verify_feed: bool = False
+
+
+class PosterService:
+    def __init__(
+        self,
+        config: PosterConfig,
+        logger: logging.Logger,
+        csv_writer: Callable[[str, str, str], None],
+        run_group_fn=None,
+    ):
+        self.config = config
+        self.logger = logger
+        self.csv_writer = csv_writer
+        self._run_group_fn = run_group_fn or self.run_group
+
+    async def run_group(
+        self, page: Page, group: Group, content_template: str, images: list[str]
+    ) -> tuple[ResultStatus, str]:
+        content = format_content(content_template, group.name)
+        try:
+            await open_group(page, group.url)
+            await create_post(page, content)
+            await upload_images(page, images)
+            await publish(page)
+        except PosterError as exc:
+            return ResultStatus.FAILED, str(exc)
+        status = await detect_result(page, content, verify_feed=self.config.verify_feed)
+        return status, status.value
+
+    async def run(
+        self,
+        page: Page,
+        groups: list[Group],
+        content_template: str,
+        images: list[str],
+        stop_event: threading.Event,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> None:
+        gq = GroupQueue(groups)
+        while len(gq) > 0:
+            if stop_event.is_set():
+                self.logger.info("Stopped by user")
+                break
+            task = gq.pop_next()
+            status, message = await self._run_group_fn(page, task.group, content_template, images)
+            if status == ResultStatus.FAILED and gq.requeue(task):
+                self.logger.info(f"{task.group.name}: retry scheduled (attempt {task.attempts})")
+            else:
+                gq.mark_done()
+                self.csv_writer(task.group.name, status.value, message)
+                self.logger.info(f"{task.group.name}: {status.value} ({gq.done}/{gq.total})")
+                if on_progress:
+                    on_progress(gq.done, gq.total)
+            delay = random.uniform(self.config.min_delay, self.config.max_delay)
+            await asyncio.sleep(delay)
