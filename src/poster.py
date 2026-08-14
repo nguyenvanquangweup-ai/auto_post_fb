@@ -48,7 +48,7 @@ class GroupQueue:
 
 import enum
 
-from playwright.async_api import TimeoutError as PWTimeoutError
+from playwright.async_api import Page, TimeoutError as PWTimeoutError
 
 from src.selectors import SEL
 
@@ -79,14 +79,14 @@ class ResultStatus(enum.Enum):
     UNKNOWN = "UNKNOWN"
 
 
-async def open_group(page, url: str, timeout_ms: int = 15000) -> None:
+async def open_group(page: Page, url: str, timeout_ms: int = 15000) -> None:
     try:
         await page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
     except PWTimeoutError as exc:
         raise GroupNotFoundError(f"Timeout opening group url: {url}") from exc
 
 
-async def create_post(page, content: str, timeout_ms: int = 10000) -> None:
+async def create_post(page: Page, content: str, timeout_ms: int = 10000) -> None:
     trigger = page.get_by_role("button", name=SEL["create_post_trigger_name"])
     try:
         await trigger.click(timeout=timeout_ms)
@@ -101,7 +101,7 @@ async def create_post(page, content: str, timeout_ms: int = 10000) -> None:
     await textbox.fill(content)
 
 
-async def upload_images(page, image_paths: list[str], timeout_ms: int = 20000) -> None:
+async def upload_images(page: Page, image_paths: list[str], timeout_ms: int = 20000) -> None:
     if not image_paths:
         return
     file_input = page.locator(SEL["file_input_css"])
@@ -116,7 +116,7 @@ async def upload_images(page, image_paths: list[str], timeout_ms: int = 20000) -
         raise UploadTimeoutError("Image preview did not render in time") from exc
 
 
-async def publish(page, timeout_ms: int = 15000) -> None:
+async def publish(page: Page, timeout_ms: int = 15000) -> None:
     publish_btn = page.get_by_role("button", name=SEL["publish_button_name"])
     try:
         await publish_btn.click(timeout=timeout_ms)
@@ -125,7 +125,7 @@ async def publish(page, timeout_ms: int = 15000) -> None:
 
 
 async def detect_result(
-    page,
+    page: Page,
     content_snippet: str,
     verify_feed: bool = False,
     timeout_ms: int = 10000,
@@ -134,6 +134,15 @@ async def detect_result(
         await page.get_by_role("dialog").wait_for(state="hidden", timeout=timeout_ms)
     except PWTimeoutError:
         return ResultStatus.FAILED
+
+    # Check if publish button is gone (signal 2: successful publish removes the button)
+    try:
+        is_visible = await page.get_by_role("button", name=SEL["publish_button_name"]).is_visible(timeout=timeout_ms)
+        if is_visible:
+            return ResultStatus.FAILED
+    except PWTimeoutError:
+        # Timeout on is_visible means button is not visible (gone), which is good
+        pass
 
     if not verify_feed:
         return ResultStatus.UNKNOWN

@@ -92,14 +92,23 @@ async def test_detect_result_dialog_open_returns_failed():
     assert status == ResultStatus.FAILED
 
 
+async def test_detect_result_stuck_publish_button_returns_failed():
+    page = FakePage()
+    page.configure("role:button:Post", visible=True)
+    status = await detect_result(page, "Hello world")
+    assert status == ResultStatus.FAILED
+
+
 async def test_detect_result_dialog_closed_no_verify_returns_unknown():
     page = FakePage()
+    page.configure("role:button:Post", visible=False)
     status = await detect_result(page, "Hello world", verify_feed=False)
     assert status == ResultStatus.UNKNOWN
 
 
 async def test_detect_result_verify_feed_found_returns_success():
     page = FakePage()
+    page.configure("role:button:Post", visible=False)
     page.configure("text:Hello world", visible=True)
     status = await detect_result(page, "Hello world", verify_feed=True)
     assert status == ResultStatus.SUCCESS
@@ -107,6 +116,7 @@ async def test_detect_result_verify_feed_found_returns_success():
 
 async def test_detect_result_verify_feed_not_found_returns_unknown():
     page = FakePage()
+    page.configure("role:button:Post", visible=False)
     page.configure("text:Hello world", visible=False)
     status = await detect_result(page, "Hello world", verify_feed=True)
     assert status == ResultStatus.UNKNOWN
