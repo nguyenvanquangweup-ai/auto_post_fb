@@ -108,9 +108,15 @@ async def toggle_anonymous(page: Page, timeout_ms: int = 5000) -> bool:
     switch = page.get_by_role("switch", name=SEL["anonymous_toggle_name"])
     try:
         await switch.click(timeout=timeout_ms)
-        return True
     except PWTimeoutError:
         return False
+
+    ok_btn = page.get_by_role("button", name=SEL["anonymous_confirm_ok_name"], exact=True)
+    try:
+        await ok_btn.click(timeout=timeout_ms)
+    except PWTimeoutError:
+        pass
+    return True
 
 
 async def check_anonymous_support(page: Page, url: str, timeout_ms: int = 10000) -> bool:

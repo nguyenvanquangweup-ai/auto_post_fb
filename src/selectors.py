@@ -3,4 +3,5 @@ SEL = {
     "publish_button_name": "Đăng",
     "file_input_css": "input[type='file']",
     "anonymous_toggle_name": "Bật/tắt bài viết ẩn danh",
+    "anonymous_confirm_ok_name": "OK",
 }
