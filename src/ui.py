@@ -88,6 +88,7 @@ class App(ctk.CTk):
         self.log_queue: queue.Queue = queue.Queue()
         self.progress_queue: queue.Queue = queue.Queue()
         self.anon_queue: queue.Queue = queue.Queue()
+        self.summary_queue: queue.Queue = queue.Queue()
         self.stop_event = threading.Event()
         self.worker_thread: threading.Thread | None = None
         self.verify_feed_var = ctk.BooleanVar(value=False)
@@ -99,6 +100,7 @@ class App(ctk.CTk):
         self.after(100, self._drain_log_queue)
         self.after(100, self._drain_progress_queue)
         self.after(100, self._drain_anon_queue)
+        self.after(100, self._drain_summary_queue)
 
     # ---------- UI construction ----------
 
@@ -343,6 +345,55 @@ class App(ctk.CTk):
             self._refresh_group_table()
         self.after(100, self._drain_anon_queue)
 
+    def _drain_summary_queue(self) -> None:
+        try:
+            while True:
+                results = self.summary_queue.get_nowait()
+                self._show_summary_popup(results)
+        except queue.Empty:
+            pass
+        self.after(100, self._drain_summary_queue)
+
+    def _show_summary_popup(self, results: list[tuple[str, str, str]]) -> None:
+        if not results:
+            return
+        success_count = sum(1 for _, status, _ in results if status == "SUCCESS")
+        popup = ctk.CTkToplevel(self)
+        popup.title("Kết quả đăng bài")
+        popup.geometry("560x420")
+        popup.grab_set()
+
+        ctk.CTkLabel(
+            popup, text=f"{success_count} / {len(results)} group thành công",
+            font=("", 14, "bold"),
+        ).pack(anchor="w", padx=16, pady=(16, 8))
+
+        table = ctk.CTkScrollableFrame(popup)
+        table.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+
+        status_display = {
+            "SUCCESS": ("Thành công", "#1a7f37"),
+            "FAILED": ("Thất bại", "#cf222e"),
+            "UNKNOWN": ("Không chắc", "#bf8700"),
+        }
+        for name, status, message in results:
+            label, color = status_display.get(status, (status, "#57606a"))
+            row = ctk.CTkFrame(table, fg_color="transparent")
+            row.pack(fill="x", pady=2)
+            ctk.CTkLabel(row, text=label, text_color=color, width=90, anchor="w").pack(side="left")
+            text_frame = ctk.CTkFrame(row, fg_color="transparent")
+            text_frame.pack(side="left", fill="x", expand=True, padx=(4, 0))
+            ctk.CTkLabel(text_frame, text=name, anchor="w", justify="left", wraplength=420).pack(
+                anchor="w", fill="x"
+            )
+            if message and message != status:
+                ctk.CTkLabel(
+                    text_frame, text=message, anchor="w", justify="left", wraplength=420,
+                    text_color="gray", font=("", 11),
+                ).pack(anchor="w", fill="x")
+
+        ctk.CTkButton(popup, text="Đóng", command=popup.destroy).pack(pady=(0, 16))
+
     # ---------- realtime log + progress ----------
 
     def _drain_log_queue(self) -> None:
@@ -492,9 +543,11 @@ class App(ctk.CTk):
     ) -> None:
         config = PosterConfig(min_delay=min_delay, max_delay=max_delay, verify_feed=verify_feed)
         csv_path = self.logs_dir / f"{time.strftime('%Y-%m-%d')}.csv"
+        results: list[tuple[str, str, str]] = []
 
         def csv_writer(group_name: str, status: str, message: str) -> None:
             write_csv_result(csv_path, time.strftime("%Y-%m-%d %H:%M:%S"), group_name, status, message)
+            results.append((group_name, status, message))
 
         service = PosterService(config, self.logger, csv_writer)
         self.progress_queue.put((0, len(groups)))
@@ -509,3 +562,4 @@ class App(ctk.CTk):
             )
         finally:
             await browser.close()
+            self.summary_queue.put(results)
