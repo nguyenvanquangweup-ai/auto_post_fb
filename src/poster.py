@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import enum
 import logging
 import random
@@ -74,6 +75,30 @@ class UploadTimeoutError(PosterError):
 
 class PublishError(PosterError):
     pass
+
+
+class StoppedByUser(Exception):
+    pass
+
+
+async def _run_cancelable(coro, stop_event: threading.Event, poll: float = 0.2):
+    task = asyncio.ensure_future(coro)
+    watcher = asyncio.ensure_future(_watch_stop(stop_event, poll))
+    done, _ = await asyncio.wait({task, watcher}, return_when=asyncio.FIRST_COMPLETED)
+    if task in done:
+        watcher.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watcher
+        return task.result()
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+    raise StoppedByUser()
+
+
+async def _watch_stop(stop_event: threading.Event, poll: float) -> None:
+    while not stop_event.is_set():
+        await asyncio.sleep(poll)
 
 
 class ResultStatus(enum.Enum):
@@ -252,7 +277,12 @@ class PosterService:
                 break
             task = gq.pop_next()
             try:
-                status, message = await self._run_group_fn(page, task.group, content_template, images)
+                status, message = await _run_cancelable(
+                    self._run_group_fn(page, task.group, content_template, images), stop_event
+                )
+            except StoppedByUser:
+                self.logger.info("Stopped by user")
+                break
             except Exception as exc:
                 self.logger.exception(f"{task.group.name}: unexpected error")
                 status, message = ResultStatus.FAILED, str(exc)
